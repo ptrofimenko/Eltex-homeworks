@@ -10,11 +10,9 @@
 
 #define BYE_OFFICE 12346
 #define HELLO_PORT 12345
-//#define HELLO_GROUP "127.0.0.255"
 
 int main()
 {
-	printf("focking Beatch");
     struct sockaddr_in addr;
     struct sockaddr_in addr2;
     int fd;
@@ -33,7 +31,6 @@ int main()
         perror("socket");
         exit(1);
     }
-	printf("focking Beatch");
     /* set up destination address */
     memset(&addr,0,sizeof(addr));
     addr.sin_family = AF_INET;
@@ -59,7 +56,6 @@ int main()
 	unsigned int addr2_size = sizeof(addr2); 
     while (1)
     {
-		//printf("Beatch");
         if (recvfrom(fd, message, 100, 0,NULL, 0) < 0)
         //if (recvfrom(fd, message, 100, 0,(struct sockaddr *) &addr, &addr_size) < 0)
         {
