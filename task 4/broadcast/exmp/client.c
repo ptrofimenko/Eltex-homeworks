@@ -45,7 +45,7 @@ int main()
 
     memset(&addr2,0,sizeof(addr2));
     addr2.sin_family = AF_INET;
-    addr2.sin_addr.s_addr = htonl(INADDR_ANY);
+    //addr2.sin_addr.s_addr = htonl(INADDR_ANY);
     addr2.sin_addr.s_addr = inet_addr(HELLO_GROUP);
     addr2.sin_port=htons(BYE_OFFICE);
     
