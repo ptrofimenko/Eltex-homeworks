@@ -1,5 +1,4 @@
 #include "echo_lib.h"
-#include "echo_lib.c"
   
 /*
     Generic checksum calculation function
@@ -146,33 +145,33 @@ int main (void)
         strcpy(source_ip , "192.168.2.2");
      
 		 
-		iph->tot_len = htons(sizeof (struct iphdr) + sizeof (struct udphdr) + strlen(data)); 
-		 //iph->tot_len = htons(sizeof (struct ethhdr) + sizeof (struct iphdr) + sizeof (struct udphdr) + strlen(data));
-		 //iph->tot_len = 0x0030;
-		 printf("tot_len = %d\n", iph->tot_len);
-		 iph->check = 0;
-		 //iph->check = csum ((unsigned short *) datagram, iph->tot_len);
-		 iph->check = csum ((unsigned short*)iph, sizeof(struct iphdr));
-		 udph->source = htons (6667);
-		// udph->source = htons (80);
-		udph->dest = htons (3435);
-		//udph->dest = htons(80);
-		udph->len = htons(8 + strlen(data)); //tcp header size
-		udph->check = 0; //leave checksum 0 now, filled later by pseudo header
+	iph->tot_len = htons(sizeof (struct iphdr) + sizeof (struct udphdr) + strlen(data)); 
+	//iph->tot_len = htons(sizeof (struct ethhdr) + sizeof (struct iphdr) + sizeof (struct udphdr) + strlen(data));
+	//iph->tot_len = 0x0030;
+	printf("tot_len = %d\n", iph->tot_len);
+	iph->check = 0;
+	//iph->check = csum ((unsigned short *) datagram, iph->tot_len);
+	iph->check = csum ((unsigned short*)iph, sizeof(struct iphdr));
+	udph->source = htons (6667);
+	// udph->source = htons (80);
+	udph->dest = htons (3435);
+	//udph->dest = htons(80);
+	udph->len = htons(8 + strlen(data)); //tcp header size
+	udph->check = 0; //leave checksum 0 now, filled later by pseudo header
      
-		psh.source_address = inet_addr( source_ip );
-		psh.dest_address = inet_addr ( dest_ip );
-		psh.placeholder = 0;
-		psh.protocol = IPPROTO_UDP;
-		psh.udp_length = htons(sizeof(struct udphdr) + strlen(data) );
+	psh.source_address = inet_addr( source_ip );
+	psh.dest_address = inet_addr ( dest_ip );
+	psh.placeholder = 0;
+	psh.protocol = IPPROTO_UDP;
+	psh.udp_length = htons(sizeof(struct udphdr) + strlen(data) );
      
-		int psize = sizeof(struct pseudo_header) + sizeof(struct udphdr) + strlen(data);
-		pseudogram = malloc(psize);
+	int psize = sizeof(struct pseudo_header) + sizeof(struct udphdr) + strlen(data);
+	pseudogram = malloc(psize);
      
-		memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
-		memcpy(pseudogram + sizeof(struct pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
+	memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
+	memcpy(pseudogram + sizeof(struct pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
      
-		udph->check = csum( (unsigned short*) pseudogram , psize);
+	udph->check = csum( (unsigned short*) pseudogram , psize);
      
 	
         printf("to send:%s\nsize: %d\n", data, strlen(data));
