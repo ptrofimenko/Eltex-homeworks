@@ -1,8 +1,8 @@
-
 #include "tufilter.h"
 
 int main(int argc, char *argv[]) {
 	int i = 0, check = 0;
+	int desc_proc;
 	filter_struct fil;
 	
 	
@@ -10,6 +10,8 @@ int main(int argc, char *argv[]) {
 		printf("%s ", argv[i]);
 	}
 	printf("\n");
+	
+	/*Проверка количества аргументов*/
 	if (argc != 2 && argc != 6 && argc != 8) {
 		wrong_format();
 		return 0;
@@ -20,6 +22,8 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
+	/* Если тип ввода == SET, то необходимо найти и определить 
+	 * остальные аргументы (ip, port, transport, disable/enable) */
 	if (fil.type == SET) {
 		check = ip(argc, argv, &fil);
 		if (check == 2) { //wrong ip
@@ -37,10 +41,21 @@ int main(int argc, char *argv[]) {
 			wrong_format();
 		}
 	}
+	
+	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
+		ERR( "Open device error: %m\n" );
+	RETURN_STRING buf;
+	if( ioctl( desc_proc, IOCTL_GET_STRING, &buf ) ) 
+		ERR( "IOCTL_GET_STRING error: %m\n" );
+	fprintf( stdout, (char*)&buf );
+	close( desc_proc );
+	return EXIT_SUCCESS;
+	
 	printf("Finished successfully\n");
 	return 0;
 }
 
+/*Вывод сообщения об ошибке в формате входных данных*/
 void wrong_format() {
 	printf("Wrong arguments!\n");
 	printf("Formant of input should be like \n./tufiler (--transport or --show) ");
@@ -48,7 +63,7 @@ void wrong_format() {
 	printf("If 1st arg is --show - no more args required\n");
 }
 
-
+/*Определение типа пользовательского запроса (Установка/удаление фильтра, вывод установленных фильтров*/
 int type(int argc, char *argv[], filter_struct *fil) {
 	
 	int i;
@@ -89,6 +104,7 @@ int type(int argc, char *argv[], filter_struct *fil) {
 	return 0;
 }
 
+/*Поиск ip адреса во входных аргументах*/
 int ip(int argc, char *argv[], filter_struct *fil) { 
 	
 	int i;
@@ -96,6 +112,7 @@ int ip(int argc, char *argv[], filter_struct *fil) {
 	
 	for(i = 0; i < argc; i++) {
 		if((strcmp("--ip", argv[i]) == 0) && i < (argc - 1)) {
+			/*проверка длины ip*/
 			if  (strlen(argv[i + 1]) > 15 || strlen(argv[i + 1]) < 7) {
 				printf("Wrong ip lenght..exiting\n");
 				return 2;
@@ -111,6 +128,7 @@ int ip(int argc, char *argv[], filter_struct *fil) {
 	return 0;
 }
 	
+/*поиск порта во входных аргументах*/
 int port(int argc, char *argv[], filter_struct *fil) {
 	
 	int i;
@@ -125,6 +143,7 @@ int port(int argc, char *argv[], filter_struct *fil) {
 	return 0;
 }
 
+/*Определение опции включить/выключить фильтр*/
 int disable_enable(int argc, char *argv[], filter_struct *fil) {
 	
 	int i;
@@ -143,3 +162,5 @@ int disable_enable(int argc, char *argv[], filter_struct *fil) {
 	}
 	return 0;
 }
+
+

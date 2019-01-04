@@ -4,19 +4,16 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/uaccess.h>
-#include <asm/uaccess.h>
 #include <linux/kdev_t.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/slab.h>                 //kmalloc()
 #include <linux/uaccess.h>              //copy_to/from_user()
-#include <linux/proc_fs.h> 
+#include <linux/sysfs.h> 
 #include <linux/kobject.h>
 #include <linux/ip.h>
 #include <net/ip.h>
-#include <linux/sched.h>
 #include <linux/udp.h> 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
