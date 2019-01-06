@@ -9,7 +9,7 @@ static int len, temp;
 
 static char *msg;
 
-int read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
+ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
 
 	if(count > temp) {
 		count = temp;

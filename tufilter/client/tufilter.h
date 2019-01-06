@@ -23,7 +23,7 @@ typedef struct _RETURN_STRING {
  
 #define IOC_MAGIC    'h' 
 #define IOCTL_GET_STRING _IOR( IOC_MAGIC, 1, RETURN_STRING ) 
-#define DEVPATH "/dev/ioctl"
+#define DEVPATH "/proc/my_firewall"
 
 typedef struct {
 	int type;

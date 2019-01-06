@@ -6,11 +6,11 @@ static int len, temp;
 static char *msg;
 
 struct file_operations proc_fops = {
-	read: read_proc,
-	ioctl: ioctl_filter
+	.read = read_proc,
+	.compat_ioctl = ioctl_filter
 };
 
-static int read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
+static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
 
 	if(count > temp) {
 		count = temp;
@@ -23,13 +23,13 @@ static int read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
 	return count;
 }
 
-static int ioctl_filter( struct inode *n, struct file *f, 
+static long ioctl_filter(struct file *f, 
                       unsigned int cmd, unsigned long arg ) {
 	if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) 
       return -ENOTTY; 
    switch( cmd ) { 
       case IOCTL_GET_STRING: 
-         if( copy_to_user( (void*)arg, hello_str, _IOC_SIZE( cmd ) ) ) 
+         if( copy_to_user( (void*)arg, msg, _IOC_SIZE( cmd ) ) ) 
             return -EFAULT; 
          break; 
       default: 
@@ -41,7 +41,7 @@ static int ioctl_filter( struct inode *n, struct file *f,
 
 
 int proc_init (void) {
- 	proc_create("hello", 0, NULL, &proc_fops);
+ 	proc_create("my_firewall", 0, NULL, &proc_fops);
 	msg = " Hello World ";	
 	len = strlen(msg);
 	temp = len;
