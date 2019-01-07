@@ -6,9 +6,20 @@ static int len, temp;
 static char *msg;
 
 struct file_operations proc_fops = {
+	.owner = THIS_MODULE,
 	.read = read_proc,
-	.compat_ioctl = ioctl_filter
+	.open = open_proc,
+	.release = release_proc,
+	.unlocked_ioctl = ioctl_filter
 };
+
+static int open_proc(struct inode *inode, struct file *file) {
+	return 0;
+}
+
+static int release_proc(struct inode *inode, struct file *file) {
+	return 0;
+}
 
 static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp) {
 
@@ -25,13 +36,18 @@ static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *off
 
 static long ioctl_filter(struct file *f, 
                       unsigned int cmd, unsigned long arg ) {
-	if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) 
-      return -ENOTTY; 
-   switch( cmd ) { 
-      case IOCTL_GET_STRING: 
-         if( copy_to_user( (void*)arg, msg, _IOC_SIZE( cmd ) ) ) 
-            return -EFAULT; 
-         break; 
+	printk(KERN_INFO "???????????????????????");
+	if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) { 
+		printk(KERN_INFO "Bad magic number -ENOTTY");
+		return -ENOTTY;
+	} 
+	switch( cmd ) { 
+		case IOCTL_GET_STRING: 
+			printk(KERN_INFO "^^^^^^^^^^^^^^^^^^^^^^^");
+			//if( copy_to_user( (void*)arg, msg, _IOC_SIZE( cmd ) ) )
+			if( copy_to_user( (void*)arg, msg, 13 ) ) 
+				return -EFAULT; 
+			break; 
       default: 
          return -ENOTTY; 
    } 
@@ -41,7 +57,7 @@ static long ioctl_filter(struct file *f,
 
 
 int proc_init (void) {
- 	proc_create("my_firewall", 0, NULL, &proc_fops);
+ 	proc_create("my_firewall", 0666, NULL, &proc_fops);
 	msg = " Hello World ";	
 	len = strlen(msg);
 	temp = len;
@@ -50,7 +66,7 @@ int proc_init (void) {
 }
 
 void proc_cleanup(void) {
-	remove_proc_entry("hello", NULL);
+	remove_proc_entry("my_firewall", NULL);
 }
 
 MODULE_LICENSE("GPL"); 

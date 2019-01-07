@@ -41,10 +41,12 @@ int main(int argc, char *argv[]) {
 			wrong_format();
 		}
 	}
-	
+	printf("Trying to open proc file\n");
 	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
+		//printf("device open error\n");
 		ERR( "Open device error: %m\n" );
-	RETURN_STRING buf;
+	char buf[ 160 ]; 
+	printf("Device opened\n");
 	if( ioctl( desc_proc, IOCTL_GET_STRING, &buf ) ) 
 		ERR( "IOCTL_GET_STRING error: %m\n" );
 	fprintf( stdout, (char*)&buf );

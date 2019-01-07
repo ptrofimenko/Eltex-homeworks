@@ -39,16 +39,17 @@
 
 #define ERR(...) fprintf( stderr, "\7" __VA_ARGS__ ), exit( EXIT_FAILURE )
 
-typedef struct _RETURN_STRING { 
-   char buf[ 160 ]; 
-} RETURN_STRING; 
+
+
+
 
 #define IOC_MAGIC    'h' 
-#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 1, RETURN_STRING ) 
-#define DEVPATH "/dev/ioctl"
+#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 0, char * ) 
  
 int proc_init (void);
 void proc_cleanup(void);
+static int open_proc(struct inode *, struct file *);
+static int release_proc(struct inode *, struct file *);
 static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp);
 static long ioctl_filter(struct file *f, unsigned int cmd, unsigned long arg);
  

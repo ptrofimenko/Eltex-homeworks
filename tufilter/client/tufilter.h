@@ -17,12 +17,10 @@
 
 #define ERR(...) fprintf( stderr, "\7" __VA_ARGS__ ), exit( EXIT_FAILURE )
 
-typedef struct _RETURN_STRING { 
-   char buf[ 160 ]; 
-} RETURN_STRING; 
+
  
 #define IOC_MAGIC    'h' 
-#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 1, RETURN_STRING ) 
+#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 0, char * ) 
 #define DEVPATH "/proc/my_firewall"
 
 typedef struct {
