@@ -47,20 +47,6 @@ int main(int argc, char *argv[]) {
 		send_filter(&fil);
 	}
 	
-	/*printf("type = %d transport = %d port = %d dis/en = %d ip = %s\n", 
-			fil.type, fil.transport, fil.port, fil.disable_enable, fil.ip);
-	printf("Trying to open proc file\n");
-	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
-		ERR( "Open device error: %m\n" );
-	char buf[ 160 ]; 
-	if( ioctl( desc_proc, IOCTL_GET_STRING, &buf ) ) 
-		ERR( "IOCTL_GET_STRING error: %m\n" );
-	fprintf( stdout, (char*)&buf );
-	
-	if( ioctl( desc_proc, IOCTL_SEND_FILTER, &fil ) ) 
-		ERR( "IOCTL_SEND_FILTER error: %m\n" );
-	close( desc_proc );*/
-	
 	
 	printf("Finished successfully\n");
 	return 0;
@@ -179,14 +165,9 @@ int send_filter(filter_struct *fil) {
 	/* Открытие файла proc модуля ядра 
 	 * для чтения и записи средствами ioctl */
 	int desc_proc;
-	int transport = fil->transport;
-	int port = fil->port;
 	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
 		ERR( "Open device error: %m\n" );
 	printf("%d %d\n", fil->transport, fil->port);
-	
-	if( ioctl( desc_proc, IOCTL_SEND_TRANSPORT, &port ) ) 
-		ERR( "IOCTL_SEND_TRANSPORT error: %m\n" );
 	if( ioctl( desc_proc, IOCTL_SEND_FILTER, fil ) ) 
 		ERR( "IOCTL_SEND_TRANSPORT error: %m\n" );
 	close( desc_proc );

@@ -16,8 +16,9 @@ int main() {
 	}
 	
 	char message[100];
-	while(1) {
-		fgets(message, 100, stdin);
+	fgets(message, 100, stdin);
+	for(int i = 0; i < 10; i++) {
+		sleep(1);
 		send(data.sock, message, sizeof(message), 0);
 		recv(data.sock, message, sizeof(message), 0);
 		printf("%s", message);

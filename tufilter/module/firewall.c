@@ -42,40 +42,34 @@ static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *off
 
 static long ioctl_filter(struct file *f, 
                       unsigned int cmd, unsigned long arg ) {
-	int transport;
+						  
 	temp_filter = kmalloc(sizeof(filter_struct), GFP_KERNEL);
 	printk(KERN_INFO "IOCTL call");
 	/*if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) { 
 		printk(KERN_INFO "Bad magic number -ENOTTY");
 		return -ENOTTY;
-	}*/ 
+	}*/
 	switch( cmd ) { 
 		case IOCTL_SEND_FILTER:
 			if (copy_from_user(temp_filter, (void*)arg, sizeof(filter_struct)))
 				return -EFAULT;
-			printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %s", 
-			temp_filter->type, temp_filter->transport, temp_filter->port, temp_filter->disable_enable, temp_filter->ip);
+			/*printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %s", 
+			temp_filter->type, temp_filter->transport, temp_filter->port, 
+			temp_filter->disable_enable, temp_filter->ip);*/
 			if (temp_filter->disable_enable == DIS) {
 				disable_filter();
 			}
-			else {
+			if (temp_filter->disable_enable == EN) {
 				enable_filter();
 			}
+			printk(KERN_NOTICE "n_filters = %d", n_filters);
+			/* костыльный printk, так как последний printk при вызове ioctl
+			 * прописывается только при следующем вызове ioctl, при этом 
+			 * системное время записи соответствует тому, в которое она должна была
+			 * прописаться, а реальное совпадает с новым вызовом ioctl */
+			printk(KERN_INFO "");
 			break;
-		case IOCTL_GET_STRING: 
-			printk(KERN_INFO "^^^^^^^^^^^^^^^^^^^^^^^");
-			if( copy_to_user( (void*)arg, msg, strlen(msg) ) )
-			//if( copy_to_user( (void*)arg, msg, 13 ) ) 
-				return -EFAULT; 
-			break;
-		case IOCTL_SEND_TRANSPORT:
-			get_user(transport, (int*)arg);
-			printk(KERN_INFO "!!!!!transport = %d!!!!!!!!!", transport);
-			break;
-				
-		default:
-			printk("default ioctl");
-			break; 
+		
    }
    return 0; 
 }
@@ -86,12 +80,17 @@ void enable_filter() {
 	for(i = 0; i < LIMIT; i++) {
 		/*установка фильтра в первую свободную ячейку*/
 		if(filters[i].type == 0) {
+			filters[i].type = 1;
 			filters[i].transport = temp_filter->transport;
 			filters[i].port = temp_filter->port;
-			strcpy(filters[i].ip, temp_filter->ip);
+			if(temp_filter->ip != NULL) {
+				filters[i].ip = (char *) kmalloc(60 * sizeof(char), GFP_KERNEL);
+				strncpy(filters[i].ip, temp_filter->ip, 60);
+			}
+			filters[i].disable_enable = 0;
 			/*увеличиваем счётчик установленных фильтров*/
 			n_filters++;
-			printk(KERN_INFO "FILTER ENABLED");
+			printk(KERN_NOTICE "FILTER ENABLED");
 			break;
 		}
 	}
@@ -105,16 +104,57 @@ void disable_filter() {
 		&& filters[i].port == temp_filter->port
 		&& (strcmp(filters[i].ip, temp_filter->ip) == 0)) {
 			filters[i].type = 0;
+			kfree(filters[i].ip);
 			/*уменьшение счётчика установленных фильтров*/
-			printk(KERN_INFO "FILTER DISABLED");
+			printk(KERN_NOTICE "FILTER DISABLED");
 			n_filters--;
 		}
 	}
 }
 
+static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf_hook_state *state) {
+	struct iphdr *ip_h;
+	struct udphdr *udp_h;
+	int i;
+	
+	if(!skb)
+		return NF_ACCEPT;
+
+	ip_h = (struct iphdr *) skb_network_header(skb);
+	
+	for(i = 0; i < LIMIT; i++) {
+		if(filters[i].type == 1) {
+			if((ip_h->protocol == IPPROTO_UDP && filters[i].transport == UDP)
+			|| (ip_h->protocol == IPPROTO_TCP && filters[i].transport == TCP)) {
+				if(ip_h->saddr == inet_addr(filters[i].ip) || filters[i].ip == NULL) {
+					udp_h = (struct udphdr *) skb_transport_header(skb);
+					if(ntohs(udp_h->source) == filters[i].port || filters[i].port == 0) {
+						/* используем поле disable_enable для счётчика 
+						 * количества заблокированных пакетов по текущему
+						 * фильтру */
+						filters[i].disable_enable++;
+						return NF_DROP;
+					}
+				}
+			}
+		}
+	}
+	
+	return NF_ACCEPT;
+	
+}
+
+unsigned int inet_addr(char *str)	{ 
+	int a,b,c,d; 
+	char arr[4]; 
+    sscanf(str,"%d.%d.%d.%d",&a,&b,&c,&d); 
+    arr[0] = a; arr[1] = b; arr[2] = c; arr[3] = d; 
+    return *(unsigned int*)arr; 
+} 
 
 int proc_init (void) {
  	int i;
+ 	int ret;
  	proc_create("my_firewall", 0666, NULL, &proc_fops);
 	msg = "Hello, this is my simple firewall";	
 	len = strlen(msg);
@@ -125,11 +165,37 @@ int proc_init (void) {
 	for (i = 0; i < LIMIT; i++) {
 		filters[i].type = 0;
 	}
+	
+	nfho_out.hook = hook_filter;
+    nfho_out.hooknum = NF_INET_LOCAL_OUT;
+    nfho_out.pf = PF_INET;
+    nfho_out.priority = NF_IP_PRI_FIRST;
+	
+	nfho_in.hook = hook_filter;
+    nfho_in.hooknum = NF_INET_LOCAL_IN;
+    nfho_in.pf = PF_INET;
+    nfho_in.priority = NF_IP_PRI_FIRST;
+    
+    /*Регистрация сетевых хуков*/
+    ret = nf_register_net_hook(&init_net, &nfho_out);
+    if (ret) {
+		printk(KERN_INFO "could not register netfilter hook\n");
+	}
+	
+	ret = nf_register_net_hook(&init_net, &nfho_in);
+    if (ret) {
+		printk(KERN_INFO "could not register netfilter hook\n");
+	}
+	
+	
 	return 0;
 }
 
 void proc_cleanup(void) {
 	kfree(temp_filter);
+	nf_unregister_net_hook(&init_net, &nfho_in);
+	nf_unregister_net_hook(&init_net, &nfho_out);
+	//kfree(filters);
 	remove_proc_entry("my_firewall", NULL);
 }
 

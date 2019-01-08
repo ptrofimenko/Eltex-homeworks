@@ -38,7 +38,7 @@
 #define IOCTL_SEND_TRANSPORT _IOW( IOC_MAGIC, 1, int) 
 #define IOCTL_SEND_FILTER _IOW( 'h', 2, filter_struct ) 
 
-//структура для хранения фильтра
+/*структура для хранения фильтра*/
 typedef struct {
 	int type;
 	int transport;
@@ -46,14 +46,27 @@ typedef struct {
 	int disable_enable;
 	char *ip;
 } filter_struct;
- 
+
+/*структуры для регистрации хуков*/
+static struct nf_hook_ops nfho_out;
+static struct nf_hook_ops nfho_in;
+
+/*базовые функции модуля*/ 
 int proc_init (void);
 void proc_cleanup(void);
 static int open_proc(struct inode *, struct file *);
 static int release_proc(struct inode *, struct file *);
 static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *offp);
+
+/*обработка ioctl вызовов*/
 static long ioctl_filter(struct file *f, unsigned int cmd, unsigned long arg);
 
+/*функция фильтрации пакетов*/ 
+static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+unsigned int inet_addr(char *);
+
+/*применение/отмена фильтров*/
 void enable_filter(void);
 void disable_filter(void);
  
