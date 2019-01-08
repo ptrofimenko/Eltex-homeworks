@@ -23,7 +23,8 @@
  
 #define IOC_MAGIC    'k' 
 #define IOCTL_GET_NFILTERS _IOR( IOC_MAGIC, 0, int)
-#define IOCTL_SEND_TRANSPORT _IOW( IOC_MAGIC, 1, int) 
+#define IOCTL_GET_STAT _IOR( IOC_MAGIC, 1, char *)
+#define IOCTL_GET_STATLEN _IOR( IOC_MAGIC, 3, int)
 #define IOCTL_SEND_FILTER _IOW( 'h', 2, filter_struct )
 #define DEVPATH "/proc/my_firewall"
 

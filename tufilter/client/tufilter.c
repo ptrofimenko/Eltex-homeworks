@@ -1,10 +1,11 @@
 #include "tufilter.h"
 
 int main(int argc, char *argv[]) {
-	int i = 0, check = 0;
+	int i = 0, check = 0, len = 0;
 	int desc_proc;
 	filter_struct fil;
 	int n_filters;
+	char * stat;
 	
 	
 	for (i = 0; i < argc; i++) {
@@ -17,6 +18,7 @@ int main(int argc, char *argv[]) {
 		wrong_format();
 		return 0;
 	}
+	
 	
 	fil.type = 0;
 	if (type(argc, argv, &fil)) {
@@ -45,7 +47,22 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 	}
-	
+	/*вывод установленных фильтров и количество заблокированных пакетов*/
+	if (fil.type == SHOW) {
+		if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
+			ERR( "Open device error: %m\n" );
+		/*получение длины строки со статистикой*/
+		if(ioctl(desc_proc, IOCTL_GET_STATLEN, &len)) 
+			ERR( "IOCTL_GET_STATLEN error: %m\n" );
+		printf("statlen = %d\n", len); 
+		stat = (char *)malloc(sizeof(char) * len + 1);
+		/*получение строки со статистикой*/
+		if(ioctl(desc_proc, IOCTL_GET_STAT, stat)) 
+			ERR( "IOCTL_GET_STAT error: %m\n" );
+		puts(stat);
+		close(desc_proc);
+		free(stat);
+	}
 	if (fil.type == SET) {
 		if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
 			ERR( "Open device error: %m\n" );
@@ -61,6 +78,7 @@ int main(int argc, char *argv[]) {
 			printf("Reached limit of filters, disable some filters to set new\n");
 			return 0;
 		}
+		free(fil.ip);
 	}
 	
 	

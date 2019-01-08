@@ -42,7 +42,10 @@ static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *off
 
 static long ioctl_filter(struct file *f, 
                       unsigned int cmd, unsigned long arg ) {
-	int n = n_filters;					  
+	int n = n_filters;
+	int i;
+	int shift = 0;
+	int statlen;					  
 	temp_filter = kmalloc(sizeof(filter_struct), GFP_KERNEL);
 	printk(KERN_INFO "IOCTL call");
 	/*if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) { 
@@ -73,6 +76,33 @@ static long ioctl_filter(struct file *f,
 				put_user(n, (int __user *)arg);
 				printk(KERN_INFO "nfilters sent to user (%d)", n_filters);
 				break;
+			case IOCTL_GET_STATLEN:
+				msg = (char *) kmalloc(1000 * sizeof(char), GFP_KERNEL);
+				/*формирование строки со статистикой*/
+				for (i = 0; i < LIMIT; i++) {
+					if(filters[i].type == 1) {
+						if(filters[i].transport == UDP) {
+							shift += sprintf(msg + shift, "proto = udp ");
+						}
+						else {
+							shift += sprintf(msg + shift, "proto = tcp ");
+						}
+						shift += sprintf(msg + shift, "ip = %s port = %d number of banned packets = %d\n",
+						filters[i].ip, filters[i].port, filters[i].disable_enable);
+					}
+				}
+				
+				/*отправка длины строки со статистикой*/
+				put_user(strlen(msg), (int __user *)arg);
+				break;
+			case IOCTL_GET_STAT:
+				statlen = strlen(msg);
+				if( copy_to_user( (void*)arg, msg, statlen ) )
+					return -EFAULT;
+				printk(KERN_INFO "%s ---- %d", msg, statlen);
+				kfree(msg); 
+				break;
+				
    }
    /* костыльный printk, так как последний printk при вызове ioctl
 	* прописывается только при следующем вызове ioctl, при этом 
@@ -240,10 +270,8 @@ int proc_init (void) {
 }
 
 void proc_cleanup(void) {
-	kfree(temp_filter);
 	nf_unregister_net_hook(&init_net, &nfho_in);
 	nf_unregister_net_hook(&init_net, &nfho_out);
-	//kfree(filters);
 	remove_proc_entry("my_firewall", NULL);
 }
 
