@@ -42,7 +42,7 @@ static ssize_t read_proc(struct file *filp, char *buf, size_t count, loff_t *off
 
 static long ioctl_filter(struct file *f, 
                       unsigned int cmd, unsigned long arg ) {
-						  
+	int n = n_filters;					  
 	temp_filter = kmalloc(sizeof(filter_struct), GFP_KERNEL);
 	printk(KERN_INFO "IOCTL call");
 	/*if( ( _IOC_TYPE( cmd ) != IOC_MAGIC ) ) { 
@@ -53,45 +53,82 @@ static long ioctl_filter(struct file *f,
 		case IOCTL_SEND_FILTER:
 			if (copy_from_user(temp_filter, (void*)arg, sizeof(filter_struct)))
 				return -EFAULT;
-			/*printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %s", 
+			/*вывод получпенного фильтра в логи*/
+			printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %s", 
 			temp_filter->type, temp_filter->transport, temp_filter->port, 
-			temp_filter->disable_enable, temp_filter->ip);*/
+			temp_filter->disable_enable, temp_filter->ip);
+			
 			if (temp_filter->disable_enable == DIS) {
 				disable_filter();
 			}
 			if (temp_filter->disable_enable == EN) {
 				enable_filter();
 			}
+			
 			printk(KERN_NOTICE "n_filters = %d", n_filters);
-			/* костыльный printk, так как последний printk при вызове ioctl
-			 * прописывается только при следующем вызове ioctl, при этом 
-			 * системное время записи соответствует тому, в которое она должна была
-			 * прописаться, а реальное совпадает с новым вызовом ioctl */
-			printk(KERN_INFO "");
 			break;
-		
+			/*отправка пользователю количества установленных фильтров*/
+			case IOCTL_GET_NFILTERS:
+				
+				put_user(n, (int __user *)arg);
+				printk(KERN_INFO "nfilters sent to user (%d)", n_filters);
+				break;
    }
-   return 0; 
+   /* костыльный printk, так как последний printk при вызове ioctl
+	* прописывается только при следующем вызове ioctl, при этом 
+	* системное время записи соответствует тому, в которое она должна была
+	* прописаться, а реальное совпадает с новым вызовом ioctl */
+	printk(KERN_INFO "");
+	return 0; 
 }
 
 /*Устанавливает фильтр из временной структуры*/ 
 void enable_filter() {
 	int i;
+	/*флаг = 1 если отправленный фильтр уже установлен*/
+	int flag = 0;
+	/*проверка, установлен ли уже полученный фильтр*/
+	
 	for(i = 0; i < LIMIT; i++) {
-		/*установка фильтра в первую свободную ячейку*/
-		if(filters[i].type == 0) {
-			filters[i].type = 1;
-			filters[i].transport = temp_filter->transport;
-			filters[i].port = temp_filter->port;
-			if(temp_filter->ip != NULL) {
-				filters[i].ip = (char *) kmalloc(60 * sizeof(char), GFP_KERNEL);
-				strncpy(filters[i].ip, temp_filter->ip, 60);
+		if(filters[i].type == 1 
+		&& filters[i].transport == temp_filter->transport
+		&& filters[i].port == temp_filter->port) {
+			/* добавлена дополнительная проверка, так как с NULL указателями
+			 * strcmp работает некорректно и приводит к ошибкам */
+			if(temp_filter->ip == NULL && filters[i].ip == NULL) {
+				flag = 1;
+				break;
 			}
-			filters[i].disable_enable = 0;
-			/*увеличиваем счётчик установленных фильтров*/
-			n_filters++;
-			printk(KERN_NOTICE "FILTER ENABLED");
-			break;
+			if (temp_filter->ip != NULL && filters[i].ip != NULL) {
+				if (strcmp(filters[i].ip, temp_filter->ip) == 0) {
+					flag = 1;
+					break;
+				}
+			}
+			
+		}
+	}
+	if(flag == 0) {	
+		/*установка фильтра в первую свободную ячейку*/
+		for(i = 0; i < LIMIT; i++) {
+			if(filters[i].type == 0) {
+				filters[i].transport = temp_filter->transport;
+				filters[i].port = temp_filter->port;
+				
+				if(temp_filter->ip != NULL) {
+					filters[i].ip = (char *) kmalloc(60 * sizeof(char), GFP_KERNEL);
+					strncpy(filters[i].ip, temp_filter->ip, 60);
+				}
+				else {
+					filters[i].ip = NULL;
+				}
+				filters[i].disable_enable = 0;
+				/*увеличиваем счётчик установленных фильтров*/
+				n_filters++;
+				filters[i].type = 1;
+				printk(KERN_NOTICE "FILTER ENABLED");
+				break;
+			}
 		}
 	}
 }
@@ -101,13 +138,24 @@ void disable_filter() {
 	for(i = 0; i < LIMIT; i++) {
 		if(filters[i].type == 1 
 		&& filters[i].transport == temp_filter->transport
-		&& filters[i].port == temp_filter->port
-		&& (strcmp(filters[i].ip, temp_filter->ip) == 0)) {
-			filters[i].type = 0;
-			kfree(filters[i].ip);
-			/*уменьшение счётчика установленных фильтров*/
-			printk(KERN_NOTICE "FILTER DISABLED");
-			n_filters--;
+		&& filters[i].port == temp_filter->port) {
+			/* добавлена дополнительная проверка, так как с NULL указателями
+			 * strcmp работает некорректно и приводит к ошибкам */
+			if(temp_filter->ip == NULL && filters[i].ip == NULL) {
+				filters[i].type = 0;
+				/*уменьшение счётчика установленных фильтров*/
+				printk(KERN_NOTICE "FILTER DISABLED");
+				n_filters--;
+			}
+			if (temp_filter->ip != NULL && filters[i].ip != NULL) {
+				if (strcmp(filters[i].ip, temp_filter->ip) == 0) {
+					filters[i].type = 0;
+					kfree(filters[i].ip);
+					printk(KERN_NOTICE "FILTER DISABLED");
+					n_filters--;
+				}
+			}
+			
 		}
 	}
 }

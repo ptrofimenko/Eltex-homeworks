@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define PORT 3437
+#define PORT 3436
 
 typedef struct {
 	int sock;

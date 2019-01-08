@@ -4,6 +4,7 @@ int main(int argc, char *argv[]) {
 	int i = 0, check = 0;
 	int desc_proc;
 	filter_struct fil;
+	int n_filters;
 	
 	
 	for (i = 0; i < argc; i++) {
@@ -29,13 +30,15 @@ int main(int argc, char *argv[]) {
 		if (check == 2) { //wrong ip
 			return 0;
 		} 
+		/*поиск порта среди аргументов, прибавлем 1 к check если порт не найдет*/
 		check += port(argc, argv, &fil);
+		/*если check == 2 значит пользователь не указал ни порт, ни ip*/
 		if (check == 2) {
 			printf("Port and ip doesn't set (need at least one)\n");
 			wrong_format();
 			return 0;
 		}
-		
+		/*поиск аргумента активации/деактивации фильтра*/
 		if(disable_enable(argc, argv, &fil) == 1) {
 			printf("Option disable or enable required\n");
 			wrong_format();
@@ -44,7 +47,20 @@ int main(int argc, char *argv[]) {
 	}
 	
 	if (fil.type == SET) {
-		send_filter(&fil);
+		if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
+			ERR( "Open device error: %m\n" );
+			
+		if( ioctl( desc_proc, IOCTL_GET_NFILTERS, &n_filters ) ) 
+			ERR( "IOCTL_GET_NFILTERS error: %m\n" );
+		close(desc_proc);
+		printf("n_filters = %d\n", n_filters);
+		/*отправка фильтра в модуль*/
+		if(n_filters < LIMIT)
+			send_filter(&fil);
+		else {
+			printf("Reached limit of filters, disable some filters to set new\n");
+			return 0;
+		}
 	}
 	
 	
@@ -169,7 +185,7 @@ int send_filter(filter_struct *fil) {
 		ERR( "Open device error: %m\n" );
 	printf("%d %d\n", fil->transport, fil->port);
 	if( ioctl( desc_proc, IOCTL_SEND_FILTER, fil ) ) 
-		ERR( "IOCTL_SEND_TRANSPORT error: %m\n" );
+		ERR( "IOCTL_SET_FILTER error: %m\n" );
 	close( desc_proc );
 
 	return 0;

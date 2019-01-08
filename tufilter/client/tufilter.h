@@ -15,6 +15,8 @@
 #define DIS 5
 #define EN 6
 
+#define LIMIT 10
+
 #define ERR(...) fprintf( stderr, "\7" __VA_ARGS__ ), exit( EXIT_FAILURE )
 
 
