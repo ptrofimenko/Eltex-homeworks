@@ -19,16 +19,18 @@
 
 
  
-#define IOC_MAGIC    'h' 
-#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 0, char * ) 
+#define IOC_MAGIC    'k' 
+#define IOCTL_GET_STRING _IOR( IOC_MAGIC, 0, char * )
+#define IOCTL_SEND_TRANSPORT _IOW( IOC_MAGIC, 1, int) 
+#define IOCTL_SEND_FILTER _IOW( 'h', 2, filter_struct )
 #define DEVPATH "/proc/my_firewall"
 
 typedef struct {
 	int type;
 	int transport;
-	char *ip;
 	int port;
 	int disable_enable;
+	char *ip;
 } filter_struct;
 
 void wrong_format();
@@ -36,5 +38,6 @@ int type(int, char **, filter_struct *);
 int ip(int, char **, filter_struct *);
 int port(int, char **, filter_struct *);
 int disable_enable(int, char **, filter_struct *);
+int send_filter(filter_struct *fil);
 
 #endif 
