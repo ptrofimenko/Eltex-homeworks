@@ -1,4 +1,5 @@
 #include "firewall.h"
+#include "../filter.h"
 
 
 static int len, temp;
@@ -71,37 +72,39 @@ static long ioctl_filter(struct file *f,
 			printk(KERN_NOTICE "n_filters = %d", n_filters);
 			break;
 			/*отправка пользователю количества установленных фильтров*/
-			case IOCTL_GET_NFILTERS:
+		case IOCTL_GET_NFILTERS:
 				
 				put_user(n, (int __user *)arg);
 				printk(KERN_INFO "nfilters sent to user (%d)", n_filters);
 				break;
-			case IOCTL_GET_STATLEN:
-				msg = (char *) kmalloc(1000 * sizeof(char), GFP_KERNEL);
-				/*формирование строки со статистикой*/
-				for (i = 0; i < LIMIT; i++) {
-					if(filters[i].type == 1) {
-						if(filters[i].transport == UDP) {
-							shift += sprintf(msg + shift, "proto = udp ");
-						}
-						else {
-							shift += sprintf(msg + shift, "proto = tcp ");
-						}
-						shift += sprintf(msg + shift, "ip = %s port = %d number of banned packets = %d\n",
-						filters[i].ip, filters[i].port, filters[i].disable_enable);
-					}
-				}
 				
-				/*отправка длины строки со статистикой*/
-				put_user(strlen(msg), (int __user *)arg);
-				break;
-			case IOCTL_GET_STAT:
-				statlen = strlen(msg);
-				if( copy_to_user( (void*)arg, msg, statlen ) )
-					return -EFAULT;
-				printk(KERN_INFO "%s ---- %d", msg, statlen);
-				kfree(msg); 
-				break;
+		case IOCTL_GET_STATLEN:
+			
+			msg = (char *) kmalloc(1000 * sizeof(char), GFP_KERNEL);
+			/*формирование строки со статистикой*/
+			for (i = 0; i < LIMIT; i++) {
+				if(filters[i].type == 1) {
+					if(filters[i].transport == UDP) {
+						shift += sprintf(msg + shift, "proto = udp ");
+					}
+					else {
+						shift += sprintf(msg + shift, "proto = tcp ");
+					}
+					shift += sprintf(msg + shift, "ip = %s port = %d number of banned packets = %d\n",
+					filters[i].ip, filters[i].port, filters[i].disable_enable);
+				}
+			}
+			
+			/*отправка длины строки со статистикой*/
+			put_user(strlen(msg), (int __user *)arg);
+			break;
+		case IOCTL_GET_STAT:
+			statlen = strlen(msg);
+			if( copy_to_user( (void*)arg, msg, statlen ) )
+				return -EFAULT;
+			printk(KERN_INFO "%s ---- %d", msg, statlen);
+			kfree(msg); 
+			break;
 				
    }
    /* костыльный printk, так как последний printk при вызове ioctl

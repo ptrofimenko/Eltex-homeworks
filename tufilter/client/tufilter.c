@@ -1,4 +1,5 @@
 #include "tufilter.h"
+#include "../filter.h"
 
 int main(int argc, char *argv[]) {
 	int i = 0, check = 0, len = 0;
@@ -7,18 +8,11 @@ int main(int argc, char *argv[]) {
 	int n_filters;
 	char * stat;
 	
-	
-	for (i = 0; i < argc; i++) {
-		printf("%s ", argv[i]);
-	}
-	printf("\n");
-	
 	/*Проверка количества аргументов*/
 	if (argc != 2 && argc != 6 && argc != 8) {
 		wrong_format();
 		return 0;
 	}
-	
 	
 	fil.type = 0;
 	if (type(argc, argv, &fil)) {
@@ -54,7 +48,6 @@ int main(int argc, char *argv[]) {
 		/*получение длины строки со статистикой*/
 		if(ioctl(desc_proc, IOCTL_GET_STATLEN, &len)) 
 			ERR( "IOCTL_GET_STATLEN error: %m\n" );
-		printf("statlen = %d\n", len); 
 		stat = (char *)malloc(sizeof(char) * len + 1);
 		/*получение строки со статистикой*/
 		if(ioctl(desc_proc, IOCTL_GET_STAT, stat)) 
@@ -70,12 +63,13 @@ int main(int argc, char *argv[]) {
 		if( ioctl( desc_proc, IOCTL_GET_NFILTERS, &n_filters ) ) 
 			ERR( "IOCTL_GET_NFILTERS error: %m\n" );
 		close(desc_proc);
-		printf("n_filters = %d\n", n_filters);
+	
 		/*отправка фильтра в модуль*/
 		if(n_filters < LIMIT)
 			send_filter(&fil);
 		else {
-			printf("Reached limit of filters, disable some filters to set new\n");
+			printf("Reached limit of filters (10), disable some filters to set new\n");
+			printf("To view enabled filters use ./tufilter --show\n");
 			return 0;
 		}
 		free(fil.ip);
@@ -90,7 +84,7 @@ int main(int argc, char *argv[]) {
 void wrong_format() {
 	printf("Wrong arguments!\n");
 	printf("Formant of input should be like \n./tufiler (--transport or --show) ");
-	printf("--ip <ip> --port <port> --filter (enable or disable)\n");
+	printf("--ip <ip> --port <port> (enable or disable)\n");
 	printf("If 1st arg is --show - no more args required\n");
 }
 
@@ -201,7 +195,7 @@ int send_filter(filter_struct *fil) {
 	int desc_proc;
 	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
 		ERR( "Open device error: %m\n" );
-	printf("%d %d\n", fil->transport, fil->port);
+	
 	if( ioctl( desc_proc, IOCTL_SEND_FILTER, fil ) ) 
 		ERR( "IOCTL_SET_FILTER error: %m\n" );
 	close( desc_proc );
