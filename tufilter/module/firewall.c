@@ -58,17 +58,20 @@ static long ioctl_filter(struct file *f,
 			if (copy_from_user(temp_filter, (void*)arg, sizeof(filter_struct)))
 				return -EFAULT;
 			/*вывод получпенного фильтра в логи*/
-			printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %s", 
+			printk(KERN_INFO "type = %d transport = %d port = %d dis/en = %d ip = %d", 
 			temp_filter->type, temp_filter->transport, temp_filter->port, 
-			temp_filter->disable_enable, temp_filter->ip);
+			temp_filter->disable_enable, temp_filter->ip.s_addr);
 			
-			if (temp_filter->disable_enable == DIS) {
-				disable_filter();
+			/* проверка, что установлен хотя бы порт или ip (если оба 0, 
+			 * то установка такого фильтра бессмысленна */
+			if(temp_filter->port != 0 || temp_filter->ip.s_addr != 0) {
+				if (temp_filter->disable_enable == DIS) {
+					disable_filter();
+				}
+				if (temp_filter->disable_enable == EN && n_filters < LIMIT) {
+					enable_filter();
+				}
 			}
-			if (temp_filter->disable_enable == EN && n_filters < LIMIT) {
-				enable_filter();
-			}
-			
 			printk(KERN_NOTICE "n_filters = %d", n_filters);
 			break;
 			/*отправка пользователю количества установленных фильтров*/
@@ -90,8 +93,8 @@ static long ioctl_filter(struct file *f,
 					else {
 						shift += sprintf(msg + shift, "proto = tcp ");
 					}
-					shift += sprintf(msg + shift, "ip = %s port = %d number of banned packets = %d\n",
-					filters[i].ip, filters[i].port, filters[i].count_banned);
+					shift += sprintf(msg + shift, "ip = %d port = %d number of banned packets = %d\n",
+					filters[i].ip.s_addr, filters[i].port, filters[i].count_banned);
 				}
 			}
 			
@@ -120,41 +123,25 @@ void enable_filter() {
 	int i;
 	/*флаг = 1 если отправленный фильтр уже установлен*/
 	int flag = 0;
-	/*проверка, установлен ли уже полученный фильтр*/
 	
+	/*проверка, установлен ли уже полученный фильтр*/
 	for(i = 0; i < LIMIT; i++) {
 		if(filters[i].isfree == 1 
 		&& filters[i].transport == temp_filter->transport
-		&& filters[i].port == temp_filter->port) {
-			/* добавлена дополнительная проверка, так как с NULL указателями
-			 * strcmp работает некорректно и приводит к ошибкам */
-			if(temp_filter->ip == NULL && filters[i].ip == NULL) {
-				flag = 1;
-				break;
-			}
-			if (temp_filter->ip != NULL && filters[i].ip != NULL) {
-				if (strcmp(filters[i].ip, temp_filter->ip) == 0) {
-					flag = 1;
-					break;
-				}
-			}
-			
-		}
+		&& filters[i].port == temp_filter->port
+		&& filters[i].ip.s_addr == temp_filter->ip.s_addr) {
+			flag = 1;
+			break;
+		}		
 	}
+	
 	if(flag == 0) {	
 		/*установка фильтра в первую свободную ячейку*/
 		for(i = 0; i < LIMIT; i++) {
 			if(filters[i].isfree == 0) {
 				filters[i].transport = temp_filter->transport;
 				filters[i].port = temp_filter->port;
-				
-				if(temp_filter->ip != NULL) {
-					filters[i].ip = (char *) kmalloc(60 * sizeof(char), GFP_KERNEL);
-					strncpy(filters[i].ip, temp_filter->ip, 60);
-				}
-				else {
-					filters[i].ip = NULL;
-				}
+				filters[i].ip.s_addr = temp_filter->ip.s_addr;
 				filters[i].count_banned = 0;
 				/*увеличиваем счётчик установленных фильтров*/
 				n_filters++;
@@ -171,26 +158,15 @@ void disable_filter() {
 	for(i = 0; i < LIMIT; i++) {
 		if(filters[i].isfree == 1 
 		&& filters[i].transport == temp_filter->transport
-		&& filters[i].port == temp_filter->port) {
-			/* добавлена дополнительная проверка, так как с NULL указателями
-			 * strcmp работает некорректно и приводит к ошибкам */
-			if(temp_filter->ip == NULL && filters[i].ip == NULL) {
-				filters[i].isfree = 0;
-				/*уменьшение счётчика установленных фильтров*/
-				printk(KERN_NOTICE "FILTER DISABLED");
-				n_filters--;
-			}
-			if (temp_filter->ip != NULL && filters[i].ip != NULL) {
-				if (strcmp(filters[i].ip, temp_filter->ip) == 0) {
-					filters[i].isfree = 0;
-					kfree(filters[i].ip);
-					printk(KERN_NOTICE "FILTER DISABLED");
-					n_filters--;
-				}
-			}
-			
+		&& filters[i].port == temp_filter->port
+		&& filters[i].ip.s_addr == temp_filter->ip.s_addr) {
+			filters[i].isfree = 0;
+			/*уменьшение счётчика установленных фильтров*/
+			printk(KERN_NOTICE "FILTER DISABLED");
+			n_filters--;
 		}
 	}
+			
 }
 
 static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf_hook_state *state) {
@@ -207,12 +183,9 @@ static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf
 		if(filters[i].isfree == 1) {
 			if((ip_h->protocol == IPPROTO_UDP && filters[i].transport == UDP)
 			|| (ip_h->protocol == IPPROTO_TCP && filters[i].transport == TCP)) {
-				if(ip_h->saddr == inet_addr(filters[i].ip) || filters[i].ip == NULL) {
+				if(ip_h->saddr == filters[i].ip.s_addr || filters[i].ip.s_addr == 0) {
 					udp_h = (struct udphdr *) skb_transport_header(skb);
 					if(ntohs(udp_h->source) == filters[i].port || filters[i].port == 0) {
-						/* используем поле disable_enable для счётчика 
-						 * количества заблокированных пакетов по текущему
-						 * фильтру */
 						filters[i].count_banned++;
 						return NF_DROP;
 					}

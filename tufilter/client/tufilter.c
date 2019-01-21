@@ -73,7 +73,6 @@ int main(int argc, char *argv[]) {
 			printf("To view enabled filters use ./tufilter --show\n");
 			return 0;
 		}
-		free(fil.ip);
 	}
 	
 	
@@ -117,7 +116,7 @@ int type(int argc, char *argv[], filter_struct *fil) {
 		else if (strcmp("--show", argv[i]) == 0) {
 			fil->type = SHOW;
 			fil->transport = 0;
-			fil->ip = NULL;
+			fil->ip.s_addr = 0;
 			fil->port = 0;
 			fil->disable_enable = 0;
 			break;
@@ -134,21 +133,18 @@ int type(int argc, char *argv[], filter_struct *fil) {
 int ip(int argc, char *argv[], filter_struct *fil) { 
 	
 	int i;
-	fil->ip = NULL;
+	fil->ip.s_addr = 0;
 	
 	for(i = 0; i < argc; i++) {
 		if((strcmp("--ip", argv[i]) == 0) && i < (argc - 1)) {
-			/*проверка длины ip*/
-			if  (strlen(argv[i + 1]) > 15 || strlen(argv[i + 1]) < 7) {
-				printf("Wrong ip lenght..exiting\n");
+			if(inet_aton(argv[i + 1], &fil->ip) == 0) {
+				printf("IP isn't valid!\n");
 				return 2;
 			}
-			fil->ip = (char *) malloc(60 * sizeof(char));
-			strcpy(fil->ip, argv[i + 1]);
 			break;
 		}
 	}
-	if(fil->ip == NULL) {
+	if(fil->ip.s_addr == 0) {
 		return 1;
 	}
 	return 0;

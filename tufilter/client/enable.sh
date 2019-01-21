@@ -1,3 +1,3 @@
 #!/bin/bash 
-./tufilter --transport udp --port 4444 enable
+./tufilter --transport udp --ip 127.0.0.1 --port 3435 enable
 

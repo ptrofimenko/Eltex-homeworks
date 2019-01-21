@@ -24,6 +24,7 @@
 #include <linux/netfilter_bridge.h> 
 #include <linux/skbuff.h>
 #include <linux/net.h>
+#include <linux/in.h>     				//struct in_addr
 
 /*временная структура для хранения фильтра*/
 typedef struct {
@@ -31,7 +32,7 @@ typedef struct {
 	int transport;
 	int port;
 	int disable_enable;
-	char *ip;
+	struct in_addr ip;
 } filter_struct_tmp;
 
 /*структура для хранения примененных фильтров*/
@@ -40,7 +41,7 @@ typedef struct {
 	int transport;
 	int port;
 	int count_banned; /*кол-во заблокированных пакетов по данному фильтру*/
-	char *ip;
+	struct in_addr ip;
 } filter_struct;
 
 /*структуры для регистрации хуков*/
