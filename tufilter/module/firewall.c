@@ -65,7 +65,7 @@ static long ioctl_filter(struct file *f,
 			if (temp_filter->disable_enable == DIS) {
 				disable_filter();
 			}
-			if (temp_filter->disable_enable == EN && n_filter < LIMIT) {
+			if (temp_filter->disable_enable == EN && n_filters < LIMIT) {
 				enable_filter();
 			}
 			

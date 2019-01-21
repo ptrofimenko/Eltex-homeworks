@@ -2,7 +2,7 @@
 #include "../filter.h"
 
 int main(int argc, char *argv[]) {
-	int i = 0, check = 0, len = 0;
+	int check = 0, len = 0;
 	int desc_proc;
 	filter_struct fil;
 	int n_filters;
