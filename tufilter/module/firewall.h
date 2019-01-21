@@ -37,6 +37,7 @@ typedef struct {
 /*структуры для регистрации хуков*/
 static struct nf_hook_ops nfho_out;
 static struct nf_hook_ops nfho_in;
+static struct nf_hook_ops nfho_pre;
 
 /*базовые функции модуля*/ 
 int proc_init (void);

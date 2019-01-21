@@ -246,26 +246,36 @@ int proc_init (void) {
 	for (i = 0; i < LIMIT; i++) {
 		filters[i].type = 0;
 	}
-	
+	/*LOCAL_OUT hook*/
 	nfho_out.hook = hook_filter;
     nfho_out.hooknum = NF_INET_LOCAL_OUT;
     nfho_out.pf = PF_INET;
     nfho_out.priority = NF_IP_PRI_FIRST;
-	
+	/*LOCAL_IN hook*/
 	nfho_in.hook = hook_filter;
     nfho_in.hooknum = NF_INET_LOCAL_IN;
     nfho_in.pf = PF_INET;
     nfho_in.priority = NF_IP_PRI_FIRST;
+    /*PRE_ROUTING hook*/
+	nfho_pre.hook = hook_filter;
+    nfho_pre.hooknum = NF_INET_PRE_ROUTING;
+    nfho_pre.pf = PF_INET;
+    nfho_pre.priority = NF_IP_PRI_FIRST;
     
     /*Регистрация сетевых хуков*/
     ret = nf_register_net_hook(&init_net, &nfho_out);
     if (ret) {
-		printk(KERN_INFO "could not register netfilter hook\n");
+		printk(KERN_INFO "could not register LOCAL_OUT netfilter hook\n");
 	}
 	
 	ret = nf_register_net_hook(&init_net, &nfho_in);
     if (ret) {
-		printk(KERN_INFO "could not register netfilter hook\n");
+		printk(KERN_INFO "could not register LOCAL_IN netfilter hook\n");
+	}
+	
+	ret = nf_register_net_hook(&init_net, &nfho_pre);
+    if (ret) {
+		printk(KERN_INFO "could not register PRE_ROUTING netfilter hook\n");
 	}
 	
 	
@@ -275,6 +285,7 @@ int proc_init (void) {
 void proc_cleanup(void) {
 	nf_unregister_net_hook(&init_net, &nfho_in);
 	nf_unregister_net_hook(&init_net, &nfho_out);
+	nf_unregister_net_hook(&init_net, &nfho_pre);
 	remove_proc_entry("my_firewall", NULL);
 }
 
