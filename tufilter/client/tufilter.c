@@ -41,10 +41,14 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 	}
+	
+	/*открываем файл proc для чтения и записи*/
+	if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
+			ERR( "Open device error: %m\n" );
+	
 	/*вывод установленных фильтров и количество заблокированных пакетов*/
 	if (fil.type == SHOW) {
-		if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
-			ERR( "Open device error: %m\n" );
+		
 		/*получение длины строки со статистикой*/
 		if(ioctl(desc_proc, IOCTL_GET_STATLEN, &len)) 
 			ERR( "IOCTL_GET_STATLEN error: %m\n" );
@@ -53,20 +57,17 @@ int main(int argc, char *argv[]) {
 		if(ioctl(desc_proc, IOCTL_GET_STAT, stat)) 
 			ERR( "IOCTL_GET_STAT error: %m\n" );
 		puts(stat);
-		close(desc_proc);
 		free(stat);
+		
 	}
 	if (fil.type == SET) {
-		if((desc_proc = open(DEVPATH, O_RDWR)) < 0 ) 
-			ERR( "Open device error: %m\n" );
+		
 			
 		if( ioctl( desc_proc, IOCTL_GET_NFILTERS, &n_filters ) ) 
 			ERR( "IOCTL_GET_NFILTERS error: %m\n" );
-		close(desc_proc);
-	
 		/*отправка фильтра в модуль*/
 		if(n_filters < LIMIT)
-			send_filter(&fil);
+			send_filter(&fil, desc_proc);
 		else {
 			printf("Reached limit of filters (10), disable some filters to set new\n");
 			printf("To view enabled filters use ./tufilter --show\n");
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
 		free(fil.ip);
 	}
 	
-	
+	close(desc_proc);
 	printf("Finished successfully\n");
 	return 0;
 }
@@ -189,16 +190,12 @@ int disable_enable(int argc, char *argv[], filter_struct *fil) {
 }
 
 /*Отправляет фильтр модулю ядра (использует ioctl)*/
-int send_filter(filter_struct *fil) {
+int send_filter(filter_struct *fil, int desc_proc) {
 	/* Открытие файла proc модуля ядра 
 	 * для чтения и записи средствами ioctl */
-	int desc_proc;
-	if( ( desc_proc = open( DEVPATH, O_RDWR ) ) < 0 ) 
-		ERR( "Open device error: %m\n" );
 	
 	if( ioctl( desc_proc, IOCTL_SEND_FILTER, fil ) ) 
 		ERR( "IOCTL_SET_FILTER error: %m\n" );
-	close( desc_proc );
 
 	return 0;
 }

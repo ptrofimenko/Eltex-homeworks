@@ -23,6 +23,6 @@ int type(int, char **, filter_struct *);
 int ip(int, char **, filter_struct *);
 int port(int, char **, filter_struct *);
 int disable_enable(int, char **, filter_struct *);
-int send_filter(filter_struct *fil);
+int send_filter(filter_struct *fil, int desc_proc);
 
 #endif 
