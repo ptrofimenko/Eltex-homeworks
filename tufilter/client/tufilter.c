@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
 		free(fil.ip);
 	}
 	
-	close(desc_proc);
+	
 	printf("Finished successfully\n");
 	return 0;
 }

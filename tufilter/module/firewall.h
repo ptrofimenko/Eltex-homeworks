@@ -25,12 +25,21 @@
 #include <linux/skbuff.h>
 #include <linux/net.h>
 
-/*структура для хранения фильтра*/
+/*временная структура для хранения фильтра*/
 typedef struct {
 	int type;
 	int transport;
 	int port;
 	int disable_enable;
+	char *ip;
+} filter_struct_tmp;
+
+/*структура для хранения примененных фильтров*/
+typedef struct {
+	int isfree; /*флаг свободна ли ячейка 0-свободна 1-занята*/
+	int transport;
+	int port;
+	int count_banned; /*кол-во заблокированных пакетов по данному фильтру*/
 	char *ip;
 } filter_struct;
 

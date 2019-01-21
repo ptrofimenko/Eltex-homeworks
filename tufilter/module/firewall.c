@@ -4,7 +4,7 @@
 
 static int len, temp;
 /*временная структура для приема фильтра от пользователя*/
-static filter_struct *temp_filter;
+static filter_struct_tmp *temp_filter;
 /*установленные фильтры*/
 static filter_struct filters[LIMIT];
 /*счётчик установленных фильтров*/
@@ -83,7 +83,7 @@ static long ioctl_filter(struct file *f,
 			msg = (char *) kmalloc(1000 * sizeof(char), GFP_KERNEL);
 			/*формирование строки со статистикой*/
 			for (i = 0; i < LIMIT; i++) {
-				if(filters[i].type == 1) {
+				if(filters[i].isfree == 1) {
 					if(filters[i].transport == UDP) {
 						shift += sprintf(msg + shift, "proto = udp ");
 					}
@@ -91,7 +91,7 @@ static long ioctl_filter(struct file *f,
 						shift += sprintf(msg + shift, "proto = tcp ");
 					}
 					shift += sprintf(msg + shift, "ip = %s port = %d number of banned packets = %d\n",
-					filters[i].ip, filters[i].port, filters[i].disable_enable);
+					filters[i].ip, filters[i].port, filters[i].count_banned);
 				}
 			}
 			
@@ -123,7 +123,7 @@ void enable_filter() {
 	/*проверка, установлен ли уже полученный фильтр*/
 	
 	for(i = 0; i < LIMIT; i++) {
-		if(filters[i].type == 1 
+		if(filters[i].isfree == 1 
 		&& filters[i].transport == temp_filter->transport
 		&& filters[i].port == temp_filter->port) {
 			/* добавлена дополнительная проверка, так как с NULL указателями
@@ -144,7 +144,7 @@ void enable_filter() {
 	if(flag == 0) {	
 		/*установка фильтра в первую свободную ячейку*/
 		for(i = 0; i < LIMIT; i++) {
-			if(filters[i].type == 0) {
+			if(filters[i].isfree == 0) {
 				filters[i].transport = temp_filter->transport;
 				filters[i].port = temp_filter->port;
 				
@@ -155,10 +155,10 @@ void enable_filter() {
 				else {
 					filters[i].ip = NULL;
 				}
-				filters[i].disable_enable = 0;
+				filters[i].count_banned = 0;
 				/*увеличиваем счётчик установленных фильтров*/
 				n_filters++;
-				filters[i].type = 1;
+				filters[i].isfree = 1;
 				printk(KERN_NOTICE "FILTER ENABLED");
 				break;
 			}
@@ -169,20 +169,20 @@ void enable_filter() {
 void disable_filter() {
 	int i;
 	for(i = 0; i < LIMIT; i++) {
-		if(filters[i].type == 1 
+		if(filters[i].isfree == 1 
 		&& filters[i].transport == temp_filter->transport
 		&& filters[i].port == temp_filter->port) {
 			/* добавлена дополнительная проверка, так как с NULL указателями
 			 * strcmp работает некорректно и приводит к ошибкам */
 			if(temp_filter->ip == NULL && filters[i].ip == NULL) {
-				filters[i].type = 0;
+				filters[i].isfree = 0;
 				/*уменьшение счётчика установленных фильтров*/
 				printk(KERN_NOTICE "FILTER DISABLED");
 				n_filters--;
 			}
 			if (temp_filter->ip != NULL && filters[i].ip != NULL) {
 				if (strcmp(filters[i].ip, temp_filter->ip) == 0) {
-					filters[i].type = 0;
+					filters[i].isfree = 0;
 					kfree(filters[i].ip);
 					printk(KERN_NOTICE "FILTER DISABLED");
 					n_filters--;
@@ -204,7 +204,7 @@ static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf
 	ip_h = (struct iphdr *) skb_network_header(skb);
 	
 	for(i = 0; i < LIMIT; i++) {
-		if(filters[i].type == 1) {
+		if(filters[i].isfree == 1) {
 			if((ip_h->protocol == IPPROTO_UDP && filters[i].transport == UDP)
 			|| (ip_h->protocol == IPPROTO_TCP && filters[i].transport == TCP)) {
 				if(ip_h->saddr == inet_addr(filters[i].ip) || filters[i].ip == NULL) {
@@ -213,7 +213,7 @@ static unsigned int hook_filter(void *priv, struct sk_buff *skb, const struct nf
 						/* используем поле disable_enable для счётчика 
 						 * количества заблокированных пакетов по текущему
 						 * фильтру */
-						filters[i].disable_enable++;
+						filters[i].count_banned++;
 						return NF_DROP;
 					}
 				}
@@ -240,11 +240,11 @@ int proc_init (void) {
 	msg = "Hello, this is my simple firewall";	
 	len = strlen(msg);
 	temp = len;
-	/* поле type используется для обозначения свободна ли ячейка фильтра,
+	/* поле isfree используется для обозначения свободна ли ячейка фильтра,
 	 * 0 - свободна, 1 - занята,
 	 * инициализируем все нулями */
 	for (i = 0; i < LIMIT; i++) {
-		filters[i].type = 0;
+		filters[i].isfree = 0;
 	}
 	/*LOCAL_OUT hook*/
 	nfho_out.hook = hook_filter;
